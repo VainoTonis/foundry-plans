@@ -150,9 +150,8 @@ func (c *Client) GetPlan(id int64) (*Plan, error) {
 	return &plan, nil
 }
 
-func (c *Client) UpdatePlanStatus(id int64, status string) (*Plan, error) {
-	payload := map[string]string{"status": status}
-	body, _ := json.Marshal(payload)
+func (c *Client) UpdatePlan(id int64, updates map[string]interface{}) (*Plan, error) {
+	body, _ := json.Marshal(updates)
 
 	req, _ := http.NewRequest("PATCH", fmt.Sprintf("%s/api/plans/%d", c.baseURL, id), bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -164,7 +163,7 @@ func (c *Client) UpdatePlanStatus(id int64, status string) (*Plan, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("update plan status failed: %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("update plan failed: %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var plan Plan
@@ -175,13 +174,19 @@ func (c *Client) UpdatePlanStatus(id int64, status string) (*Plan, error) {
 }
 
 func (c *Client) UpdateStep(planID, stepID int64, status, text string) (*PlanStep, error) {
-	payload := map[string]interface{}{
-		"status": status,
+	payload := map[string]interface{}{}
+	if status != "" {
+		payload["status"] = status
 	}
 	if text != "" {
 		payload["text"] = text
 	}
-	body, _ := json.Marshal(payload)
+
+	return c.UpdateStepFromMap(planID, stepID, payload)
+}
+
+func (c *Client) UpdateStepFromMap(planID, stepID int64, updates map[string]interface{}) (*PlanStep, error) {
+	body, _ := json.Marshal(updates)
 
 	endpoint := fmt.Sprintf("%s/api/plans/%d/steps/%d", c.baseURL, planID, stepID)
 	req, _ := http.NewRequest("PATCH", endpoint, bytes.NewReader(body))

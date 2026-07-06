@@ -3,7 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+	"io"
+	"os"
 
 	"github.com/VainoTonis/foundry-plans/internal/foundry"
 	"github.com/spf13/cobra"
@@ -31,20 +32,41 @@ var listCmd = &cobra.Command{
 
 var createCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create a new plan",
+	Short: "Create a new plan (JSON from stdin only)",
+	Long:  "Create a new plan from JSON input on stdin.\n\nRequired JSON fields: repo_name (string), title (string)\nOptional JSON fields: summary (string), steps (array of strings)",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		repoName, _ := cmd.Flags().GetString("repo-name")
-		title, _ := cmd.Flags().GetString("title")
-		summary, _ := cmd.Flags().GetString("summary")
-		stepsStr, _ := cmd.Flags().GetString("steps")
-
-		if repoName == "" || title == "" {
-			return fmt.Errorf("--repo-name and --title are required")
+		input, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read stdin: %v", err)
 		}
 
+		var req map[string]interface{}
+		if err := json.Unmarshal(input, &req); err != nil {
+			return fmt.Errorf("invalid JSON input: %v", err)
+		}
+
+		repoName, ok := req["repo_name"].(string)
+		if !ok || repoName == "" {
+			return fmt.Errorf("repo_name is required")
+		}
+
+		title, ok := req["title"].(string)
+		if !ok || title == "" {
+			return fmt.Errorf("title is required")
+		}
+
+		summary, _ := req["summary"].(string)
+
 		var steps []string
-		if stepsStr != "" {
-			steps = strings.Split(stepsStr, ",")
+		if stepsInterface, ok := req["steps"]; ok {
+			if stepsArray, ok := stepsInterface.([]interface{}); ok {
+				for _, step := range stepsArray {
+					if stepStr, ok := step.(string); ok {
+						steps = append(steps, stepStr)
+					}
+				}
+			}
 		}
 
 		client := foundry.NewClient(apiURL)
@@ -78,17 +100,48 @@ var getCmd = &cobra.Command{
 	},
 }
 
-var updateStatusCmd = &cobra.Command{
-	Use:   "update-status <id> <status>",
-	Short: "Update plan status",
-	Args:  cobra.ExactArgs(2),
+var updateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Update a plan (JSON from stdin only)",
+	Long:  "Update a plan from JSON input on stdin.\n\nRequired JSON field: id (number)\nOptional JSON fields: status (string), title (string), summary (string)",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var id int64
-		if _, err := fmt.Sscanf(args[0], "%d", &id); err != nil {
-			return fmt.Errorf("invalid plan id: %v", err)
+		input, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read stdin: %v", err)
 		}
+
+		var updates map[string]interface{}
+		if err := json.Unmarshal(input, &updates); err != nil {
+			return fmt.Errorf("invalid JSON input: %v", err)
+		}
+
+		idInterface, ok := updates["id"]
+		if !ok {
+			return fmt.Errorf("id is required")
+		}
+
+		var id int64
+		switch v := idInterface.(type) {
+		case float64:
+			id = int64(v)
+		case string:
+			if _, err := fmt.Sscanf(v, "%d", &id); err != nil {
+				return fmt.Errorf("invalid id: %v", err)
+			}
+		default:
+			return fmt.Errorf("id must be a number or string")
+		}
+
+		// Remove id from updates before sending to API
+		delete(updates, "id")
+
+		if len(updates) == 0 {
+			return fmt.Errorf("no fields to update provided")
+		}
+
 		client := foundry.NewClient(apiURL)
-		plan, err := client.UpdatePlanStatus(id, args[1])
+		plan, err := client.UpdatePlan(id, updates)
 		if err != nil {
 			return err
 		}
@@ -99,25 +152,65 @@ var updateStatusCmd = &cobra.Command{
 }
 
 var updateStepCmd = &cobra.Command{
-	Use:   "update-step <plan-id> <step-id> <status> [text]",
-	Short: "Update step status and/or text",
-	Args:  cobra.MinimumNArgs(3),
+	Use:   "update-step",
+	Short: "Update a step (JSON from stdin only)",
+	Long:  "Update a step from JSON input on stdin.\n\nRequired JSON fields: plan_id (number), step_id (number)\nOptional JSON fields: status (string), text (string)",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		input, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read stdin: %v", err)
+		}
+
+		var updates map[string]interface{}
+		if err := json.Unmarshal(input, &updates); err != nil {
+			return fmt.Errorf("invalid JSON input: %v", err)
+		}
+
+		planIDInterface, ok := updates["plan_id"]
+		if !ok {
+			return fmt.Errorf("plan_id is required")
+		}
+
+		stepIDInterface, ok := updates["step_id"]
+		if !ok {
+			return fmt.Errorf("step_id is required")
+		}
+
 		var planID, stepID int64
-		if _, err := fmt.Sscanf(args[0], "%d", &planID); err != nil {
-			return fmt.Errorf("invalid plan id: %v", err)
+		
+		switch v := planIDInterface.(type) {
+		case float64:
+			planID = int64(v)
+		case string:
+			if _, err := fmt.Sscanf(v, "%d", &planID); err != nil {
+				return fmt.Errorf("invalid plan_id: %v", err)
+			}
+		default:
+			return fmt.Errorf("plan_id must be a number or string")
 		}
-		if _, err := fmt.Sscanf(args[1], "%d", &stepID); err != nil {
-			return fmt.Errorf("invalid step id: %v", err)
+
+		switch v := stepIDInterface.(type) {
+		case float64:
+			stepID = int64(v)
+		case string:
+			if _, err := fmt.Sscanf(v, "%d", &stepID); err != nil {
+				return fmt.Errorf("invalid step_id: %v", err)
+			}
+		default:
+			return fmt.Errorf("step_id must be a number or string")
 		}
-		status := args[2]
-		text := ""
-		if len(args) > 3 {
-			text = args[3]
+
+		// Remove plan_id and step_id from updates before sending to API
+		delete(updates, "plan_id")
+		delete(updates, "step_id")
+
+		if len(updates) == 0 {
+			return fmt.Errorf("no fields to update provided")
 		}
 
 		client := foundry.NewClient(apiURL)
-		step, err := client.UpdateStep(planID, stepID, status, text)
+		step, err := client.UpdateStepFromMap(planID, stepID, updates)
 		if err != nil {
 			return err
 		}
@@ -132,11 +225,6 @@ func init() {
 	plansCmd.AddCommand(listCmd)
 	plansCmd.AddCommand(createCmd)
 	plansCmd.AddCommand(getCmd)
-	plansCmd.AddCommand(updateStatusCmd)
+	plansCmd.AddCommand(updateCmd)
 	plansCmd.AddCommand(updateStepCmd)
-
-	createCmd.Flags().String("repo-name", "", "Repository name (required)")
-	createCmd.Flags().String("title", "", "Plan title (required)")
-	createCmd.Flags().String("summary", "", "Plan summary")
-	createCmd.Flags().String("steps", "", "Comma-separated list of steps")
 }

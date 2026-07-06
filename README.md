@@ -20,38 +20,63 @@ make build
 
 ### Commands
 
-#### List Plans
+#### List Plans (read-only)
 
 ```bash
 ./foundry-plans plans list
 ```
 
-#### Create Plan
+#### Create Plan (JSON-only)
+
+Create a new plan. All fields must come from JSON stdin. No positional arguments.
+
+Required JSON fields: `repo_name`, `title`
+Optional JSON fields: `summary`, `steps` (array of strings)
 
 ```bash
-./foundry-plans plans create \
-  --repo-name my-repo \
-  --title "My Plan" \
-  --summary "Plan description" \
-  --steps "step1,step2,step3"
+echo '{
+  "repo_name": "my-repo",
+  "title": "My Plan",
+  "summary": "Plan description",
+  "steps": ["step1", "step2", "step3"]
+}' | ./foundry-plans plans create
 ```
 
-#### Get Plan
+#### Get Plan (read-only)
 
 ```bash
 ./foundry-plans plans get 123
 ```
 
-#### Update Plan Status
+#### Update Plan (JSON-only)
+
+Update a plan. All fields including the plan `id` must come from JSON stdin. No positional arguments.
+
+Required JSON field: `id`
+Optional JSON fields: `status`, `title`, `summary`
 
 ```bash
-./foundry-plans plans update-status 123 in_progress
+echo '{
+  "id": 123,
+  "status": "in_progress",
+  "title": "Updated Title"
+}' | ./foundry-plans plans update
 ```
 
-#### Update Step
+#### Update Step (JSON-only)
+
+Update a step. All fields including `plan_id` and `step_id` must come from JSON stdin. No positional arguments.
+
+Required JSON fields: `plan_id`, `step_id`
+Optional JSON fields: `status`, `text`
 
 ```bash
-./foundry-plans plans update-step 123 456 completed
+echo '{
+  "plan_id": 123,
+  "step_id": 456,
+  "status": "completed",
+  "text": "Step completed successfully"
+}' | ./foundry-plans plans update-step
 ```
 
 ## Examples
@@ -61,20 +86,30 @@ make build
 ./foundry-plans plans list
 
 # Create a plan with steps
-./foundry-plans plans create \
-  --repo-name example \
-  --title "Setup" \
-  --summary "Initial setup plan" \
-  --steps "install,configure,deploy"
+echo '{
+  "repo_name": "example",
+  "title": "Setup",
+  "summary": "Initial setup plan",
+  "steps": ["install", "configure", "deploy"]
+}' | ./foundry-plans plans create
 
 # Get plan details
 ./foundry-plans plans get 123
 
-# Update plan status
-./foundry-plans plans update-status 123 in_progress
+# Update plan status and title
+echo '{
+  "id": 123,
+  "status": "in_progress",
+  "title": "Setup in Progress"
+}' | ./foundry-plans plans update
 
 # Update a step
-./foundry-plans plans update-step 123 456 completed "Step completed successfully"
+echo '{
+  "plan_id": 123,
+  "step_id": 456,
+  "status": "completed",
+  "text": "Installation complete"
+}' | ./foundry-plans plans update-step
 
 # Use custom API URL
 ./foundry-plans --url http://api.example.com plans list
@@ -93,5 +128,5 @@ The CLI uses the following Foundry API endpoints:
 - `GET /api/plans/{id}` - Get plan details
 - `GET /api/plans/{id}/steps` - Get plan steps
 - `POST /api/plans/{id}/steps` - Create a step
-- `PATCH /api/plans/{id}` - Update plan status
-- `PATCH /api/plans/{id}/steps/{step_id}` - Update step status/text
+- `PATCH /api/plans/{id}` - Update plan (status, title, summary)
+- `PATCH /api/plans/{id}/steps/{step_id}` - Update step (status, text)
