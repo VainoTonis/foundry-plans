@@ -8,6 +8,14 @@ A minimal Go CLI for managing plans via Foundry HTTP API.
 make build
 ```
 
+## Install
+
+```bash
+make install
+```
+
+Installs `foundry-plans` to `~/.local/bin/foundry-plans`.
+
 ## Usage
 
 ```bash
