@@ -154,7 +154,7 @@ var updateCmd = &cobra.Command{
 var updateStepCmd = &cobra.Command{
 	Use:   "update-step",
 	Short: "Update a step (JSON from stdin only)",
-	Long:  "Update a step from JSON input on stdin.\n\nRequired JSON fields: plan_id (number), step_id (number)\nOptional JSON fields: status (string), text (string)",
+	Long:  "Update a step from JSON input on stdin.\n\nRequired JSON fields: plan_id (number), and either step_id (number) or position (number)\nOptional JSON fields: status (string), text (string)",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		input, err := io.ReadAll(os.Stdin)
@@ -172,13 +172,8 @@ var updateStepCmd = &cobra.Command{
 			return fmt.Errorf("plan_id is required")
 		}
 
-		stepIDInterface, ok := updates["step_id"]
-		if !ok {
-			return fmt.Errorf("step_id is required")
-		}
+		var planID int64
 
-		var planID, stepID int64
-		
 		switch v := planIDInterface.(type) {
 		case float64:
 			planID = int64(v)
@@ -190,27 +185,58 @@ var updateStepCmd = &cobra.Command{
 			return fmt.Errorf("plan_id must be a number or string")
 		}
 
-		switch v := stepIDInterface.(type) {
-		case float64:
-			stepID = int64(v)
-		case string:
-			if _, err := fmt.Sscanf(v, "%d", &stepID); err != nil {
-				return fmt.Errorf("invalid step_id: %v", err)
-			}
-		default:
-			return fmt.Errorf("step_id must be a number or string")
+		// Check for either step_id or position
+		stepIDInterface, hasStepID := updates["step_id"]
+		positionInterface, hasPosition := updates["position"]
+
+		if !hasStepID && !hasPosition {
+			return fmt.Errorf("either step_id or position is required")
 		}
 
-		// Remove plan_id and step_id from updates before sending to API
+		if hasStepID && hasPosition {
+			return fmt.Errorf("cannot specify both step_id and position")
+		}
+
+		// Remove plan_id, step_id, and position from updates before sending to API
 		delete(updates, "plan_id")
 		delete(updates, "step_id")
+		delete(updates, "position")
 
 		if len(updates) == 0 {
 			return fmt.Errorf("no fields to update provided")
 		}
 
 		client := foundry.NewClient(apiURL)
-		step, err := client.UpdateStepFromMap(planID, stepID, updates)
+		var step *foundry.PlanStep
+
+		if hasStepID {
+			var stepID int64
+			switch v := stepIDInterface.(type) {
+			case float64:
+				stepID = int64(v)
+			case string:
+				if _, err := fmt.Sscanf(v, "%d", &stepID); err != nil {
+					return fmt.Errorf("invalid step_id: %v", err)
+				}
+			default:
+				return fmt.Errorf("step_id must be a number or string")
+			}
+			step, err = client.UpdateStepFromMap(planID, stepID, updates)
+		} else {
+			var position int
+			switch v := positionInterface.(type) {
+			case float64:
+				position = int(v)
+			case string:
+				if _, err := fmt.Sscanf(v, "%d", &position); err != nil {
+					return fmt.Errorf("invalid position: %v", err)
+				}
+			default:
+				return fmt.Errorf("position must be a number or string")
+			}
+			step, err = client.UpdateStepByPosition(planID, position, updates)
+		}
+
 		if err != nil {
 			return err
 		}

@@ -65,10 +65,12 @@ echo '{
 
 #### Update Step (JSON-only)
 
-Update a step. All fields including `plan_id` and `step_id` must come from JSON stdin. No positional arguments.
+Update a step. All fields including `plan_id` and either `step_id` or `position` must come from JSON stdin. No positional arguments.
 
-Required JSON fields: `plan_id`, `step_id`
+Required JSON fields: `plan_id`, and either `step_id` (number) or `position` (number)
 Optional JSON fields: `status`, `text`
+
+You can identify a step by `step_id` (the unique step ID):
 
 ```bash
 echo '{
@@ -76,6 +78,17 @@ echo '{
   "step_id": 456,
   "status": "completed",
   "text": "Step completed successfully"
+}' | ./foundry-plans plans update-step
+```
+
+Or by `position` (the step's position in the plan, 1-based):
+
+```bash
+echo '{
+  "plan_id": 123,
+  "position": 1,
+  "status": "completed",
+  "text": "First step completed"
 }' | ./foundry-plans plans update-step
 ```
 
@@ -103,12 +116,20 @@ echo '{
   "title": "Setup in Progress"
 }' | ./foundry-plans plans update
 
-# Update a step
+# Update a step by step_id
 echo '{
   "plan_id": 123,
   "step_id": 456,
   "status": "completed",
   "text": "Installation complete"
+}' | ./foundry-plans plans update-step
+
+# Update a step by position
+echo '{
+  "plan_id": 123,
+  "position": 1,
+  "status": "completed",
+  "text": "First step done"
 }' | ./foundry-plans plans update-step
 
 # Use custom API URL

@@ -85,11 +85,11 @@ func (c *Client) CreatePlan(repoName, title, summary string, steps []string) (*P
 		return nil, err
 	}
 
-	// POST each step
-	for _, stepText := range steps {
+	for i, stepText := range steps {
 		stepPayload := map[string]interface{}{
-			"text":   stepText,
-			"status": "pending",
+			"position": i + 1,
+			"text":     stepText,
+			"status":   "pending",
 		}
 		stepBody, _ := json.Marshal(stepPayload)
 		stepResp, err := c.http.Post(
@@ -207,4 +207,27 @@ func (c *Client) UpdateStepFromMap(planID, stepID int64, updates map[string]inte
 		return nil, err
 	}
 	return &step, nil
+}
+
+func (c *Client) UpdateStepByPosition(planID int64, position int, updates map[string]interface{}) (*PlanStep, error) {
+	plan, err := c.GetPlan(planID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch plan: %v", err)
+	}
+
+	var stepID int64
+	found := false
+	for _, step := range plan.Steps {
+		if step.Position == position {
+			stepID = step.ID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("step at position %d not found for plan %d", position, planID)
+	}
+
+	return c.UpdateStepFromMap(planID, stepID, updates)
 }
