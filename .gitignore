@@ -1,0 +1,30 @@
+# Build artifacts
+foundry-plans
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.test
+
+# Go build cache
+.go/
+
+# Dependencies
+vendor/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS temp files
+Thumbs.db
+
+# Test coverage
+*.out
+coverage.txt
