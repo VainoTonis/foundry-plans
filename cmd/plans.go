@@ -68,7 +68,14 @@ var createCmd = &cobra.Command{
 					} else if stepObj, ok := step.(map[string]interface{}); ok {
 						// Handle object {text, parallel_group}
 						text, _ := stepObj["text"].(string)
-						parallelGroup, _ := stepObj["parallel_group"].(string)
+						var parallelGroup *int
+						if pgInterface, ok := stepObj["parallel_group"]; ok {
+							switch v := pgInterface.(type) {
+							case float64:
+								pg := int(v)
+								parallelGroup = &pg
+							}
+						}
 						steps = append(steps, foundry.CreateStepInput{
 							Text:           text,
 							ParallelGroup: parallelGroup,
