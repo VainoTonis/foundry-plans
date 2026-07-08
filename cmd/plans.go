@@ -33,7 +33,7 @@ var listCmd = &cobra.Command{
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new plan (JSON from stdin only)",
-	Long:  "Create a new plan from JSON input on stdin.\n\nRequired JSON fields: repo_name (string), title (string)\nOptional JSON fields: summary (string), steps (array of strings)",
+	Long:  "Create a new plan from JSON input on stdin.\n\nRequired JSON fields: repo_name (string), title (string)\nOptional JSON fields: summary (string), steps (array of strings or objects with 'text' and optional 'parallel_group')",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		input, err := io.ReadAll(os.Stdin)
@@ -58,12 +58,21 @@ var createCmd = &cobra.Command{
 
 		summary, _ := req["summary"].(string)
 
-		var steps []string
+		var steps []foundry.CreateStepInput
 		if stepsInterface, ok := req["steps"]; ok {
 			if stepsArray, ok := stepsInterface.([]interface{}); ok {
 				for _, step := range stepsArray {
+					// Handle plain string
 					if stepStr, ok := step.(string); ok {
-						steps = append(steps, stepStr)
+						steps = append(steps, foundry.CreateStepInput{Text: stepStr})
+					} else if stepObj, ok := step.(map[string]interface{}); ok {
+						// Handle object {text, parallel_group}
+						text, _ := stepObj["text"].(string)
+						parallelGroup, _ := stepObj["parallel_group"].(string)
+						steps = append(steps, foundry.CreateStepInput{
+							Text:           text,
+							ParallelGroup: parallelGroup,
+						})
 					}
 				}
 			}
