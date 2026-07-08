@@ -77,7 +77,7 @@ var createCmd = &cobra.Command{
 							}
 						}
 						steps = append(steps, foundry.CreateStepInput{
-							Text:           text,
+							Text:          text,
 							ParallelGroup: parallelGroup,
 						})
 					}
