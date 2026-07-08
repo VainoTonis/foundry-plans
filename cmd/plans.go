@@ -170,7 +170,7 @@ var updateCmd = &cobra.Command{
 var updateStepCmd = &cobra.Command{
 	Use:   "update-step",
 	Short: "Update a step (JSON from stdin only)",
-	Long:  "Update a step from JSON input on stdin.\n\nRequired JSON fields: plan_id (number), and either step_id (number) or position (number)\nOptional JSON fields: status (string), text (string)",
+	Long:  "Update a step from JSON input on stdin.\n\nRequired JSON fields: plan_id (number), and either step_id (number) or position (number)\nOptional JSON fields: status (string), text (string), parallel_group (number)",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		input, err := io.ReadAll(os.Stdin)
