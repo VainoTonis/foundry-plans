@@ -10,11 +10,17 @@ import (
 )
 
 type PlanStep struct {
-	ID       int64  `json:"id"`
-	PlanID   int64  `json:"plan_id"`
-	Position int    `json:"position"`
-	Text     string `json:"text"`
-	Status   string `json:"status"`
+	ID             int64  `json:"id"`
+	PlanID         int64  `json:"plan_id"`
+	Position       int    `json:"position"`
+	Text           string `json:"text"`
+	Status         string `json:"status"`
+	ParallelGroup  *int   `json:"parallel_group,omitempty"`
+}
+
+type CreateStepInput struct {
+	Text           string `json:"text"`
+	ParallelGroup  *int   `json:"parallel_group,omitempty"`
 }
 
 type Plan struct {
@@ -57,7 +63,7 @@ func (c *Client) ListPlans() ([]Plan, error) {
 	return plans, nil
 }
 
-func (c *Client) CreatePlan(repoName, title, summary string, steps []string) (*Plan, error) {
+func (c *Client) CreatePlan(repoName, title, summary string, steps []CreateStepInput) (*Plan, error) {
 	payload := map[string]interface{}{
 		"repo_name": repoName,
 		"title":     title,
@@ -85,11 +91,14 @@ func (c *Client) CreatePlan(repoName, title, summary string, steps []string) (*P
 		return nil, err
 	}
 
-	for i, stepText := range steps {
+	for i, step := range steps {
 		stepPayload := map[string]interface{}{
 			"position": i + 1,
-			"text":     stepText,
+			"text":     step.Text,
 			"status":   "pending",
+		}
+		if step.ParallelGroup != nil {
+			stepPayload["parallel_group"] = *step.ParallelGroup
 		}
 		stepBody, _ := json.Marshal(stepPayload)
 		stepResp, err := c.http.Post(
