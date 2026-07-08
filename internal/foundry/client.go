@@ -10,26 +10,26 @@ import (
 )
 
 type PlanStep struct {
-	ID             int64  `json:"id"`
-	PlanID         int64  `json:"plan_id"`
-	Position       int    `json:"position"`
-	Text           string `json:"text"`
-	Status         string `json:"status"`
-	ParallelGroup  *int   `json:"parallel_group,omitempty"`
+	ID            int64  `json:"id"`
+	PlanID        int64  `json:"plan_id"`
+	Position      int    `json:"position"`
+	Text          string `json:"text"`
+	Status        string `json:"status"`
+	ParallelGroup *int   `json:"parallel_group,omitempty"`
 }
 
 type CreateStepInput struct {
-	Text           string `json:"text"`
-	ParallelGroup  *int   `json:"parallel_group,omitempty"`
+	Text          string `json:"text"`
+	ParallelGroup *int   `json:"parallel_group,omitempty"`
 }
 
 type Plan struct {
-	ID       int64       `json:"id"`
-	RepoName string      `json:"repo_name"`
-	Title    string      `json:"title"`
-	Summary  string      `json:"summary"`
-	Status   string      `json:"status"`
-	Steps    []PlanStep  `json:"steps"`
+	ID       int64      `json:"id"`
+	RepoName string     `json:"repo_name"`
+	Title    string     `json:"title"`
+	Summary  string     `json:"summary"`
+	Status   string     `json:"status"`
+	Steps    []PlanStep `json:"steps"`
 }
 
 type Client struct {
