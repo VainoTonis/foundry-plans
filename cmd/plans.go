@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/VainoTonis/foundry-plans/internal/foundry"
 	"github.com/spf13/cobra"
@@ -33,7 +35,7 @@ var listCmd = &cobra.Command{
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new plan (JSON from stdin only)",
-	Long:  "Create a new plan from JSON input on stdin.\n\nRequired JSON fields: repo_name (string), title (string)\nOptional JSON fields: summary (string), steps (array of strings or objects with 'text' and optional 'parallel_group')",
+	Long:  "Create a new plan from JSON input on stdin.\n\nRequired JSON fields: repository_ids (non-empty array of positive integers), title (string)\nOptional JSON fields: summary (string), steps (array of strings or objects with 'text' and optional 'parallel_group')",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		input, err := io.ReadAll(os.Stdin)
@@ -42,13 +44,15 @@ var createCmd = &cobra.Command{
 		}
 
 		var req map[string]interface{}
-		if err := json.Unmarshal(input, &req); err != nil {
+		decoder := json.NewDecoder(strings.NewReader(string(input)))
+		decoder.UseNumber()
+		if err := decoder.Decode(&req); err != nil {
 			return fmt.Errorf("invalid JSON input: %v", err)
 		}
 
-		repoName, ok := req["repo_name"].(string)
-		if !ok || repoName == "" {
-			return fmt.Errorf("repo_name is required")
+		repositoryIDs, err := parseRepositoryIDs(req["repository_ids"])
+		if err != nil {
+			return err
 		}
 
 		title, ok := req["title"].(string)
@@ -71,6 +75,10 @@ var createCmd = &cobra.Command{
 						var parallelGroup *int
 						if pgInterface, ok := stepObj["parallel_group"]; ok {
 							switch v := pgInterface.(type) {
+							case json.Number:
+								if parsed, err := strconv.Atoi(v.String()); err == nil {
+									parallelGroup = &parsed
+								}
 							case float64:
 								pg := int(v)
 								parallelGroup = &pg
@@ -86,7 +94,7 @@ var createCmd = &cobra.Command{
 		}
 
 		client := foundry.NewClient(apiURL)
-		plan, err := client.CreatePlan(repoName, title, summary, steps)
+		plan, err := client.CreatePlan(repositoryIDs, title, summary, steps)
 		if err != nil {
 			return err
 		}
@@ -94,6 +102,27 @@ var createCmd = &cobra.Command{
 		fmt.Println(string(output))
 		return nil
 	},
+}
+
+func parseRepositoryIDs(value interface{}) ([]int64, error) {
+	values, ok := value.([]interface{})
+	if !ok || len(values) == 0 {
+		return nil, fmt.Errorf("repository_ids must be a non-empty array of positive integers")
+	}
+
+	ids := make([]int64, len(values))
+	for i, value := range values {
+		number, ok := value.(json.Number)
+		if !ok {
+			return nil, fmt.Errorf("repository_ids[%d] must be a positive integer", i)
+		}
+		id, err := strconv.ParseInt(number.String(), 10, 64)
+		if err != nil || id <= 0 {
+			return nil, fmt.Errorf("repository_ids[%d] must be a positive integer", i)
+		}
+		ids[i] = id
+	}
+	return ids, nil
 }
 
 var getCmd = &cobra.Command{

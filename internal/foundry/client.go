@@ -23,13 +23,18 @@ type CreateStepInput struct {
 	ParallelGroup *int   `json:"parallel_group,omitempty"`
 }
 
+type Repository struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
 type Plan struct {
-	ID       int64      `json:"id"`
-	RepoName string     `json:"repo_name"`
-	Title    string     `json:"title"`
-	Summary  string     `json:"summary"`
-	Status   string     `json:"status"`
-	Steps    []PlanStep `json:"steps"`
+	ID           int64        `json:"id"`
+	Repositories []Repository `json:"repositories"`
+	Title        string       `json:"title"`
+	Summary      string       `json:"summary"`
+	Status       string       `json:"status"`
+	Steps        []PlanStep   `json:"steps"`
 }
 
 type Client struct {
@@ -63,11 +68,20 @@ func (c *Client) ListPlans() ([]Plan, error) {
 	return plans, nil
 }
 
-func (c *Client) CreatePlan(repoName, title, summary string, steps []CreateStepInput) (*Plan, error) {
+func (c *Client) CreatePlan(repositoryIDs []int64, title, summary string, steps []CreateStepInput) (*Plan, error) {
+	if len(repositoryIDs) == 0 {
+		return nil, fmt.Errorf("repository_ids must be a non-empty array of positive integers")
+	}
+	for i, id := range repositoryIDs {
+		if id <= 0 {
+			return nil, fmt.Errorf("repository_ids[%d] must be a positive integer", i)
+		}
+	}
+
 	payload := map[string]interface{}{
-		"repo_name": repoName,
-		"title":     title,
-		"summary":   summary,
+		"repository_ids": repositoryIDs,
+		"title":          title,
+		"summary":        summary,
 	}
 
 	body, _ := json.Marshal(payload)
