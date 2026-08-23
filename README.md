@@ -38,12 +38,14 @@ Installs `foundry-plans` to `~/.local/bin/foundry-plans`.
 
 Create a new plan. All fields must come from JSON stdin. No positional arguments.
 
-Required JSON fields: `repo_name`, `title`
-Optional JSON fields: `summary`, `steps` (array of strings)
+Required JSON fields: `repository_ids` (non-empty array of positive integer Foundry repository IDs), `title`
+Optional JSON fields: `summary`, `steps` (array of strings or objects with `text` and optional `parallel_group`)
+
+Repository IDs come from `GET /api/repositories` on the configured Foundry server.
 
 ```bash
 echo '{
-  "repo_name": "my-repo",
+  "repository_ids": [1],
   "title": "My Plan",
   "summary": "Plan description",
   "steps": ["step1", "step2", "step3"]
@@ -108,7 +110,7 @@ echo '{
 
 # Create a plan with steps
 echo '{
-  "repo_name": "example",
+  "repository_ids": [1],
   "title": "Setup",
   "summary": "Initial setup plan",
   "steps": ["install", "configure", "deploy"]
