@@ -28,13 +28,20 @@ type Repository struct {
 	Name string `json:"name"`
 }
 
+type PlanRepository struct {
+	Position     int        `json:"position"`
+	RepositoryID int64      `json:"repository_id"`
+	Repository   Repository `json:"repository"`
+}
+
 type Plan struct {
-	ID           int64        `json:"id"`
-	Repositories []Repository `json:"repositories"`
-	Title        string       `json:"title"`
-	Summary      string       `json:"summary"`
-	Status       string       `json:"status"`
-	Steps        []PlanStep   `json:"steps"`
+	ID           int64            `json:"id"`
+	Repositories []PlanRepository `json:"repositories"`
+	Title        string           `json:"title"`
+	Summary      string           `json:"summary"`
+	Content      string           `json:"content"`
+	Status       string           `json:"status"`
+	Steps        []PlanStep       `json:"steps"`
 }
 
 type Client struct {

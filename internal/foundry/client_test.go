@@ -29,12 +29,12 @@ func TestCreatePlanCreatesPlanAndSteps(t *testing.T) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/plans":
 			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"id":7,"title":"Plan","summary":"Summary","status":"pending","repositories":[{"id":11,"name":"one"},{"id":12,"name":"two"}]}`))
+			_, _ = w.Write([]byte(`{"id":7,"title":"Plan","summary":"Summary","content":"Plan content","status":"pending","repositories":[{"position":1,"repository_id":11,"repository":{"id":11,"name":"one"}},{"position":2,"repository_id":12,"repository":{"id":12,"name":"two"}}]}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/plans/7/steps":
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/plans/7":
-			_, _ = w.Write([]byte(`{"id":7,"title":"Plan","summary":"Summary","status":"pending","repositories":[{"id":11,"name":"one"},{"id":12,"name":"two"}]}`))
+			_, _ = w.Write([]byte(`{"id":7,"title":"Plan","summary":"Summary","content":"Plan content","status":"pending","repositories":[{"position":1,"repository_id":11,"repository":{"id":11,"name":"one"}},{"position":2,"repository_id":12,"repository":{"id":12,"name":"two"}}]}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/plans/7/steps":
 			_, _ = w.Write([]byte(`[{"id":21,"plan_id":7,"position":1,"text":"first","status":"pending"},{"id":22,"plan_id":7,"position":2,"text":"second","status":"pending","parallel_group":3}]`))
 		default:
@@ -51,8 +51,15 @@ func TestCreatePlanCreatesPlanAndSteps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePlan() error = %v", err)
 	}
-	if got := plan.Repositories; !reflect.DeepEqual(got, []Repository{{ID: 11, Name: "one"}, {ID: 12, Name: "two"}}) {
+	wantRepositories := []PlanRepository{
+		{Position: 1, RepositoryID: 11, Repository: Repository{ID: 11, Name: "one"}},
+		{Position: 2, RepositoryID: 12, Repository: Repository{ID: 12, Name: "two"}},
+	}
+	if got := plan.Repositories; !reflect.DeepEqual(got, wantRepositories) {
 		t.Fatalf("repositories = %#v", got)
+	}
+	if plan.Content != "Plan content" {
+		t.Fatalf("content = %q", plan.Content)
 	}
 	if len(plan.Steps) != 2 || plan.Steps[1].ParallelGroup == nil || *plan.Steps[1].ParallelGroup != 3 {
 		t.Fatalf("steps = %#v", plan.Steps)
@@ -100,7 +107,7 @@ func TestCreatePlanAPIFailures(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/api/plans" {
 				w.WriteHeader(http.StatusCreated)
-				_, _ = w.Write([]byte(`{"id":7,"repositories":[{"id":1,"name":"one"}]}`))
+				_, _ = w.Write([]byte(`{"id":7,"repositories":[{"position":1,"repository_id":1,"repository":{"id":1,"name":"one"}}]}`))
 				return
 			}
 			http.Error(w, "no step", http.StatusInternalServerError)
